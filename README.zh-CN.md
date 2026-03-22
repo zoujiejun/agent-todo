@@ -1,6 +1,11 @@
 # agent-todo
 
-把聊天或讨论里的“后续我来做”变成 agent 的执行队列。`agent-todo` 不再只是逾期提醒器，而是让 heartbeat 在轮询时真正挑任务、认领任务、推动任务完成。
+> **别再让 AI Agent 只会口头答应。**
+> 聊天界面很适合对话，却不擅长真正把事情做完。当一个 Agent 说“这个我稍后去做”，上下文窗口一清空，这个承诺往往也就随之消失。
+>
+> `agent-todo` 是一个为 AI Agent 原生设计的主动执行队列。它不是把事项放进一个被动清单里就结束，而是直接接入 Agent 的 heartbeat——驱动 Agent 自动认领下一项任务、在后台执行，并在完成后回写到原始来源。
+>
+> 不再只是提醒，而是真正执行。
 
 - GitHub: https://github.com/zoujiejun/agent-todo
 - ClawHub: https://clawhub.com/skills/agent-todo
