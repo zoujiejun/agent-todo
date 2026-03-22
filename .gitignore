@@ -1,0 +1,12 @@
+# Runtime data
+TODO.md
+
+# Temporary files
+*.tmp
+*.bak
+
+# Shell/editor noise
+.DS_Store
+
+# Test output
+/tmp/agent-todo-smoke-*.out
