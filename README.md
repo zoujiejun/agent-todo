@@ -66,7 +66,7 @@ bash ./script.sh setup-heartbeat --write
 bash ./script.sh setup-heartbeat --all --write
 ```
 
-This uses a managed block in `HEARTBEAT.md` and updates that block in place instead of overwriting the whole file.
+This uses a managed block in `HEARTBEAT.md` and updates that block in place instead of overwriting the whole file. The generated command binds the target workspace explicitly with `AGENT_TODO_WORKSPACE=...`, so shared/external skill installs still read the correct local queue.
 
 ### Add a task for the current agent
 

@@ -85,5 +85,7 @@ grep -q 'Review release' "$WORKSPACE_B/.agent-todo/tasks.json"
 bash ./script.sh setup-heartbeat --all --write >/tmp/agent-todo-smoke-heartbeat.out
 grep -q 'agent-todo:begin' "$WORKSPACE_A/HEARTBEAT.md"
 grep -q 'agent-todo:begin' "$WORKSPACE_B/HEARTBEAT.md"
+grep -Fq "AGENT_TODO_WORKSPACE=$WORKSPACE_A bash $ROOT/script.sh run-pending --claim" "$WORKSPACE_A/HEARTBEAT.md"
+grep -Fq "AGENT_TODO_WORKSPACE=$WORKSPACE_B bash $ROOT/script.sh run-pending --claim" "$WORKSPACE_B/HEARTBEAT.md"
 
 echo 'smoke test passed'

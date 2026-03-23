@@ -127,9 +127,11 @@ Use `~/.openclaw/openclaw.json` as the only discovery source for agent workspace
 
 ```md
 <!-- agent-todo:begin -->
-bash ./skills/agent-todo/script.sh run-pending --claim
+AGENT_TODO_WORKSPACE=/path/to/workspace bash ./skills/agent-todo/script.sh run-pending --claim
 <!-- agent-todo:end -->
 ```
+
+When the skill lives outside the target workspace, `setup-heartbeat` must bind the target workspace explicitly via `AGENT_TODO_WORKSPACE=...` so `run-pending` reads the correct local queue.
 
 ### Rules
 

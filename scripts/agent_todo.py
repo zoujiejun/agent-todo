@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import sys
 import uuid
 from dataclasses import dataclass
@@ -146,15 +147,18 @@ class Runtime:
         write_json(self.tasks_path, {"version": 2, "tasks": tasks})
 
     def heartbeat_command(self, workspace: Path | None = None) -> str:
-        workspace = workspace or self.workspace
+        workspace = (workspace or self.workspace).resolve()
         script_path = (self.script_dir / "script.sh").resolve()
         try:
             rel = os.path.relpath(script_path, workspace)
             if not rel.startswith(".."):
-                return f"bash ./{rel} run-pending --claim"
+                return f"AGENT_TODO_WORKSPACE={shlex.quote(str(workspace))} bash ./{rel} run-pending --claim"
         except ValueError:
             pass
-        return f"bash {script_path} run-pending --claim"
+        return (
+            f"AGENT_TODO_WORKSPACE={shlex.quote(str(workspace))} "
+            f"bash {shlex.quote(str(script_path))} run-pending --claim"
+        )
 
     def discovered_workspaces(self) -> list[Path]:
         items: list[Path] = []
