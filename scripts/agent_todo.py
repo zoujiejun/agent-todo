@@ -199,7 +199,17 @@ class Runtime:
 
 
 def ensure_heartbeat_block(path: Path, command: str, write: bool) -> tuple[str, bool]:
-    block = f"{BLOCK_BEGIN}\n{command}\n{BLOCK_END}"
+    block = "\n".join(
+        [
+            BLOCK_BEGIN,
+            "### Agent Todo 队列",
+            "检查当前 workspace 的 agent-todo 是否有可执行任务：",
+            f"- 命令: `{command}`",
+            "- 逻辑: 如果返回 `EXECUTE_NOW`，立即执行该任务；如果返回 `HEARTBEAT_OK`，继续处理其他 heartbeat 项。",
+            "- 注意: 完成后调用 `done`，受阻则调用 `block`。",
+            BLOCK_END,
+        ]
+    )
     if path.exists():
         content = path.read_text(encoding="utf-8")
     else:
