@@ -1,7 +1,7 @@
 {
   "name": "agent-todo",
   "slug": "agent-todo",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "description": "Turn conversational promises into an automated execution queue. Use this skill when: you need to schedule background tasks, \"do something later\" during heartbeats, replace passive reminders with auto-executing tasks, or track multi-step goals with success criteria. Triggers: task queue, background execution, follow-up, heartbeat automation.",
   "author": "Agent Todo Contributors",
   "license": "MIT",
