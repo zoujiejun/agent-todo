@@ -73,7 +73,7 @@ Optional self-declared identity:
 ```json
 {
   "agent_id": "coding",
-  "label": "云舟"
+  "label": "Coding Agent"
 }
 ```
 

@@ -3,7 +3,6 @@
 > **Local-first execution queue for OpenClaw agents.**
 > Each agent keeps its own queue inside its own workspace, claims work during heartbeat, and can dispatch tasks to another agent when needed.
 
-- GitHub: https://github.com/zoujiejun/agent-todo
 - ClawHub: https://clawhub.com/skills/agent-todo
 - 中文说明: [README.zh-CN.md](./README.zh-CN.md)
 
@@ -30,7 +29,7 @@ Runtime data lives inside the workspace:
 ```
 
 - `tasks.json`: the local execution queue
-- `local.json`: optional self-declared identity, e.g. `{"agent_id":"coding","label":"云舟"}`
+- `local.json`: optional self-declared identity, e.g. `{"agent_id":"coding","label":"Coding Agent"}`
 - workspace discovery source: `~/.openclaw/openclaw.json`
 
 ## Quick Start
@@ -38,8 +37,8 @@ Runtime data lives inside the workspace:
 ### Install
 
 ```bash
-git clone https://github.com/zoujiejun/agent-todo.git
-cd agent-todo
+clawhub install agent-todo
+cd ~/.openclaw/workspace/skills/agent-todo
 chmod +x script.sh todo.sh hooks/*.sh tests/smoke.sh
 ```
 
@@ -92,7 +91,7 @@ bash ./script.sh plan "Open-source release" \
 
 ```bash
 bash ./script.sh dispatch "Review release" \
-  --to-agent lilith \
+  --to-agent reviewer \
   --task-type review \
   --source "chat:direct" \
   --next-action "Review release artifacts" \
@@ -126,7 +125,7 @@ bash ./script.sh doctor
 bash ./script.sh setup-heartbeat --write
 bash ./script.sh setup-heartbeat --all --write
 bash ./script.sh add "Refine release plan" --task-type doc --next-action "Update README and SKILL.md"
-bash ./script.sh dispatch "Review release" --to-agent lilith --task-type review --next-action "Review artifacts"
+bash ./script.sh dispatch "Review release" --to-agent reviewer --task-type review --next-action "Review artifacts"
 bash ./script.sh plan "Release" --task-type publish --steps "Update README; Push GitHub; Publish ClawHub"
 bash ./script.sh list --status pending
 bash ./script.sh show <id>
@@ -157,3 +156,5 @@ bash tests/smoke.sh
 ## License
 
 MIT License
+nse
+nse

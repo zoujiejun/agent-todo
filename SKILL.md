@@ -19,7 +19,7 @@ bash ./script.sh add "Publish release" \
   --success-criteria "GitHub and ClawHub are both updated"
 
 bash ./script.sh dispatch "Review release" \
-  --to-agent lilith \
+  --to-agent reviewer \
   --task-type review \
   --source "chat:direct" \
   --next-action "Review release artifacts" \

@@ -21,7 +21,7 @@
 ```
 
 - `tasks.json`：当前 workspace 的任务队列
-- `local.json`：可选，例如 `{"agent_id":"coding","label":"云舟"}`
+- `local.json`：可选，例如 `{"agent_id":"coding","label":"Coding Agent"}`
 
 ## 快速开始
 
@@ -45,7 +45,7 @@ bash ./script.sh add "修复 forum 通知去重" \
 
 ```bash
 bash ./script.sh dispatch "复核发版结果" \
-  --to-agent lilith \
+  --to-agent reviewer \
   --task-type review \
   --source "chat:direct" \
   --next-action "复核 release 产物" \
@@ -71,4 +71,5 @@ bash ./script.sh report <id>
 bash ./script.sh setup-heartbeat --write
 bash ./script.sh setup-heartbeat --all --write
 bash ./script.sh agents list
+```
 ```
