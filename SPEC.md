@@ -20,9 +20,9 @@ During collaborative work, agents often say "I'll do X later" in forum replies o
 - id: auto-generated UUID
   title: "Brief description of the task"
   deadline: "2026-03-23T18:00:00+08:00"  # ISO-8601 with timezone
-  owner: "Agent"                              # Agent who committed
-  requester: "Requester"                          # Person who needs it done
-  source: "forum:#123" | "chat:direct"        # Where it was committed
+  owner: "云舟"                              # Agent who committed
+  requester: "阿君"                          # Person who needs it done
+  source: "forum:#19" | "chat:direct"        # Where it was committed
   status: "pending" | "done" | "overdue" | "cancelled"
   created_at: ISO-8601
   updated_at: ISO-8601
@@ -48,10 +48,10 @@ pending → cancelled (owner cancels with reason)
 
 ```bash
 # Manual add
-todo add "Write SPEC.md for agent-todo" --deadline "2026-03-22T12:00" --owner "Agent" --requester "Requester" --source "chat:direct"
+todo add "Write SPEC.md for agent-todo" --deadline "2026-03-22T12:00" --owner "云舟" --requester "阿君" --source "chat:direct"
 
 # From forum commit (hook-triggered)
-todo add "细化需求文档和技术方案" --deadline "2026-03-22T18:00" --owner "Agent" --requester "Requester" --source "forum:#123"
+todo add "细化需求文档和技术方案" --deadline "2026-03-22T18:00" --owner "云舟" --requester "阿君" --source "forum:#19"
 ```
 
 #### 2. List TODOs
@@ -61,7 +61,7 @@ todo add "细化需求文档和技术方案" --deadline "2026-03-22T18:00" --own
 todo list
 
 # Filter by owner
-todo list --owner "Agent"
+todo list --owner "云舟"
 
 # Filter by status
 todo list --status pending
@@ -97,7 +97,7 @@ When marking done, automatically generates a completion report:
 ```
 ✅ [完成汇报] 任务名称
 - 完成时间: 2026-03-22 17:30
-- 原始需求来自: forum:#123
+- 原始需求来自: forum:#19
 - 完成备注: SPEC.md 已完成，仓库已初始化
 
 请确认。
@@ -169,7 +169,7 @@ Plain markdown table in `TODO.md`:
 
 | id | title | deadline | owner | requester | source | status | created_at | updated_at | completed_at | notes | tags |
 |----|-------|----------|-------|-----------|--------|--------|------------|------------|--------------|-------|------|
-| abc123 | Write SPEC.md | 2026-03-22T12:00:00+08:00 | Agent | Requester | forum:#123 | done | 2026-03-22T10:00:00+08:00 | 2026-03-22T17:30:00+08:00 | 2026-03-22T17:30:00+08:00 | | |
+| abc123 | Write SPEC.md | 2026-03-22T12:00:00+08:00 | 云舟 | 阿君 | forum:#19 | done | 2026-03-22T10:00:00+08:00 | 2026-03-22T17:30:00+08:00 | 2026-03-22T17:30:00+08:00 | | |
 ```
 
 Using markdown table allows:

@@ -82,7 +82,7 @@ bash ./script.sh setup-heartbeat --write
 ```bash
 bash ./script.sh add "把 skill 发布到 GitHub 和 ClawHub" \
   --task-type publish \
-  --owner "Agent" \
+  --owner "云舟" \
   --source "chat:direct" \
   --next-action "先推 GitHub main，再发布 ClawHub 版本" \
   --success-criteria "GitHub 已更新，ClawHub 版本已发布"
@@ -93,7 +93,7 @@ bash ./script.sh add "把 skill 发布到 GitHub 和 ClawHub" \
 ```bash
 bash ./script.sh plan "开源发布" \
   --task-type publish \
-  --owner "Agent" \
+  --owner "云舟" \
   --source "chat:direct" \
   --steps "更新 README; 推送 GitHub; 发布 ClawHub"
 ```

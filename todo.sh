@@ -710,8 +710,8 @@ cmd_run_pending() {
   #
   # Uses column-index lookup to handle empty cells in the markdown table correctly.
 
-  local selected_line=""
-  selected_line=$(awk -F'|' -v owner_filter="$owner_filter" '
+  local -a candidate_lines=()
+  mapfile -t candidate_lines < <(awk -F'|' -v owner_filter="$owner_filter" '
     function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
     NR == 7 {
       # Header row: discover column indices (handles empty cells)
@@ -762,35 +762,44 @@ cmd_run_pending() {
 
       print priority "\t" order_key "\t" created_at "\t" raw
     }
-  ' "$TODO_DB" | sort -t$'\t' -k1,1n -k2,2 | head -n 1 | cut -f4-)
+  ' "$TODO_DB" | sort -t$'\t' -k1,1n -k2,2 -k3,3 | cut -f4-)
 
-  if [[ -z "$selected_line" ]]; then
+  if [[ ${#candidate_lines[@]} -eq 0 ]]; then
     echo "HEARTBEAT_OK"
     return
   fi
 
-  local id
-  id=$(row_field "$selected_line" 1)
-  load_task "$id"
+  local selected_line=""
+  local id=""
+  local candidate_line=""
+  for candidate_line in "${candidate_lines[@]}"; do
+    id=$(row_field "$candidate_line" 1)
+    load_task "$id"
 
-  # Re-check dependencies at load time for safety
-  if [[ -n "$TASK_DEPENDS_ON" ]]; then
     local all_done=1
-    IFS=',' read -r -a dep_array <<< "$TASK_DEPENDS_ON"
-    for dep_id in "${dep_array[@]}"; do
-      dep_id=$(echo "$dep_id" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-      [[ -z "$dep_id" ]] && continue
-      local dep_status
-      dep_status=$(get_field "$dep_id" status)
-      if [[ "$dep_status" != "done" ]]; then
-        all_done=0
-        break
-      fi
-    done
-    if [[ $all_done -eq 0 ]]; then
-      echo "HEARTBEAT_OK"
-      return
+    if [[ -n "$TASK_DEPENDS_ON" ]]; then
+      IFS=',' read -r -a dep_array <<< "$TASK_DEPENDS_ON"
+      for dep_id in "${dep_array[@]}"; do
+        dep_id=$(echo "$dep_id" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [[ -z "$dep_id" ]] && continue
+        local dep_status
+        dep_status=$(get_field "$dep_id" status)
+        if [[ "$dep_status" != "done" ]]; then
+          all_done=0
+          break
+        fi
+      done
     fi
+
+    if [[ $all_done -eq 1 ]]; then
+      selected_line="$candidate_line"
+      break
+    fi
+  done
+
+  if [[ -z "$selected_line" ]]; then
+    echo "HEARTBEAT_OK"
+    return
   fi
 
   if [[ $claim -eq 1 ]]; then

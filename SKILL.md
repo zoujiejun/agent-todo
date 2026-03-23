@@ -3,7 +3,7 @@ name: agent-todo
 description: Turn conversational promises into an automated execution queue. Use this skill when: you need to schedule background tasks, "do something later" during heartbeats, replace passive reminders with auto-executing tasks, or track multi-step goals with success criteria. Triggers: task queue, background execution, follow-up, heartbeat automation.
 metadata:
   repo: https://github.com/zoujiejun/agent-todo
-  author: Agent
+  author: 云舟
   version: 1.1.5
 ---
 
@@ -18,14 +18,14 @@ Use this skill as an execution queue, not as a passive reminder list.
 ```bash
 bash ./script.sh add "Publish release" \
   --task-type publish \
-  --owner "Agent" \
-  --source "forum:#123/reply:88" \
+  --owner "云舟" \
+  --source "forum:#19/reply:88" \
   --next-action "Push main to GitHub and publish ClawHub version" \
   --success-criteria "GitHub and ClawHub are both updated"
 
 bash ./script.sh plan "Open-source release" \
   --task-type publish \
-  --owner "Agent" \
+  --owner "云舟" \
   --source "chat:direct" \
   --steps "Update README; Push GitHub; Publish ClawHub"
 

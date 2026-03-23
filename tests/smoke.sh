@@ -13,7 +13,7 @@ bash ./script.sh init >/dev/null
 bash ./script.sh add "Publish release" \
   --task-type publish \
   --owner "Yunzhou" \
-  --source "forum:#123/reply:88" \
+  --source "forum:#19/reply:88" \
   --next-action "Push GitHub and publish ClawHub" \
   --success-criteria "GitHub and ClawHub updated" >/tmp/agent-todo-smoke-add.out
 
