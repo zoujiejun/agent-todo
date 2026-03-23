@@ -1,212 +1,175 @@
-# agent-todo Skill Specification
+# agent-todo Specification
 
-## Overview
+## Positioning
 
-`agent-todo` is an OpenClaw skill that automatically tracks follow-up tasks committed during forum discussions and chat conversations. It ensures nothing falls through the cracks by enforcing deadline discipline and owner accountability.
+`agent-todo` is a **local-first execution queue** for OpenClaw agents.
 
-## Core Problem
+It is not a shared reminder board anymore. Each agent owns its queue inside its own workspace, heartbeat only consumes local work, and cross-agent routing happens explicitly through `dispatch`.
 
-During collaborative work, agents often say "I'll do X later" in forum replies or chat, but there's no system to:
-1. Capture these commitments automatically
-2. Remind the owner before deadlines
-3. Track completion status
-4. Report back to the requester after finishing
+## Design Goals
 
-## Core Concepts
+1. **Install and use immediately**
+   - single-workspace mode must work after install
+   - no extra registry required for the default path
 
-### TODO Entry Schema
+2. **Align heartbeat, workspace, and memory**
+   - each workspace keeps its own queue
+   - each agent heartbeat only consumes its own queue
+   - execution context stays inside the same workspace
 
-```yaml
-- id: auto-generated UUID
-  title: "Brief description of the task"
-  deadline: "2026-03-23T18:00:00+08:00"  # ISO-8601 with timezone
-  owner: "云舟"                              # Agent who committed
-  requester: "阿君"                          # Person who needs it done
-  source: "forum:#19" | "chat:direct"        # Where it was committed
-  status: "pending" | "done" | "overdue" | "cancelled"
-  created_at: ISO-8601
-  updated_at: ISO-8601
-  completed_at: ISO-8601 | null
-  notes: "Additional context from the original commit"
-  tags: ["feature", "bugfix"]  # optional
+3. **Support multi-agent routing without heavy central config**
+   - discover workspaces from `~/.openclaw/openclaw.json`
+   - read each workspace's `.agent-todo/local.json` when dispatching
+
+4. **Avoid schema drift**
+   - runtime storage uses JSON instead of Markdown tables
+
+## Runtime Layout
+
+```text
+<workspace>/
+  .agent-todo/
+    tasks.json
+    local.json
+  HEARTBEAT.md
 ```
 
-### Status Transitions
+### `tasks.json`
 
-```
-pending → done     (owner marks complete)
-pending → overdue  (deadline passed without completion)
-overdue → done    (owner completes late)
-pending → cancelled (owner cancels with reason)
-```
-
-## Functionality
-
-### Core Features
-
-#### 1. Add TODO (from command line or hook)
-
-```bash
-# Manual add
-todo add "Write SPEC.md for agent-todo" --deadline "2026-03-22T12:00" --owner "云舟" --requester "阿君" --source "chat:direct"
-
-# From forum commit (hook-triggered)
-todo add "细化需求文档和技术方案" --deadline "2026-03-22T18:00" --owner "云舟" --requester "阿君" --source "forum:#19"
-```
-
-#### 2. List TODOs
-
-```bash
-# All pending
-todo list
-
-# Filter by owner
-todo list --owner "云舟"
-
-# Filter by status
-todo list --status pending
-todo list --status overdue
-
-# Show upcoming (within N hours)
-todo list --upcoming 24
+```json
+{
+  "version": 2,
+  "tasks": [
+    {
+      "id": "uuid",
+      "title": "Review unread notification logic",
+      "status": "pending",
+      "task_type": "coding",
+      "source": "chat:direct",
+      "next_action": "Inspect unread notification generation",
+      "success_criteria": "No duplicate notifications",
+      "result": "",
+      "deadline": "",
+      "owner_agent_id": "coding",
+      "created_by_agent_id": "coding",
+      "claimed_at": "",
+      "last_attempt_at": "",
+      "blocked_reason": "",
+      "parent_id": "",
+      "depends_on": [],
+      "created_at": "2026-03-24T00:00:00+08:00",
+      "updated_at": "2026-03-24T00:00:00+08:00",
+      "completed_at": "",
+      "tags": []
+    }
+  ]
+}
 ```
 
-#### 3. Mark Complete
+### `local.json`
 
-```bash
-todo done <id> --note "SPEC.md 已完成，仓库已初始化"
+Optional self-declared identity:
+
+```json
+{
+  "agent_id": "coding",
+  "label": "云舟"
+}
 ```
 
-#### 4. Cancel TODO
+If missing, the runtime falls back to the current workspace entry inside `openclaw.json`; if still unresolved, it uses `local`.
 
-```bash
-todo cancel <id> --reason "需求已由其他agent完成"
+## Workspace Discovery
+
+Use `~/.openclaw/openclaw.json` as the only discovery source for agent workspaces.
+
+### Discovery flow
+
+1. Read `agents.defaults.workspace`
+2. Read `agents.list[*].workspace`
+3. Deduplicate paths
+4. When dispatching, inspect `<workspace>/.agent-todo/local.json`
+5. Match `agent_id`
+
+### Why this design
+
+- no duplicate workspace registry
+- no drift between OpenClaw and agent-todo
+- keeps the model aligned with how OpenClaw already stores agents
+
+## Command Model
+
+### Local commands
+
+- `init`
+- `doctor`
+- `setup-heartbeat [--write] [--all] [--dry-run]`
+- `add`
+- `plan`
+- `list`
+- `show`
+- `report`
+- `run-pending --claim`
+- `done`
+- `block`
+- `unblock`
+- `cancel`
+
+### Cross-agent command
+
+- `dispatch --to-agent <agent_id>`
+
+`add` always writes to the current workspace. `dispatch` always writes to a discovered target workspace.
+
+## Heartbeat Strategy
+
+`setup-heartbeat` manages a block inside `HEARTBEAT.md`:
+
+```md
+<!-- agent-todo:begin -->
+bash ./skills/agent-todo/script.sh run-pending --claim
+<!-- agent-todo:end -->
 ```
 
-#### 5. Check Overdue (for heartbeat)
+### Rules
 
-```bash
-todo check-overdue
-# Returns list of overdue items, formatted for notification
-```
+- if the block is missing: append it
+- if the block exists: update it in place
+- never overwrite unrelated user content in `HEARTBEAT.md`
+- `--all` applies the same append-or-update logic to every discovered workspace
 
-#### 6. Report to Requester
+## Selection Rules for `run-pending`
 
-When marking done, automatically generates a completion report:
+1. ignore `done`, `cancelled`, `blocked`
+2. require all `depends_on` tasks to be done
+3. prefer child tasks over standalone/parent tasks
+4. prefer `running` over `pending`
+5. among pending tasks, prefer earlier deadline, then earlier creation time
 
-```
-✅ [完成汇报] 任务名称
-- 完成时间: 2026-03-22 17:30
-- 原始需求来自: forum:#19
-- 完成备注: SPEC.md 已完成，仓库已初始化
+## Reporting
 
-请确认。
-```
+Keep source-aware reports:
 
-### Hook Mechanism
+- `forum:#...` → forum reply format
+- `chat:...` → direct-chat reply format
+- others → generic report format
 
-The skill supports OpenClaw hooks for automatic TODO capture:
+## Error Handling
 
-1. **Forum reply hook**: When the agent replies in forum and commits to a follow-up action, the TODO is automatically logged
-2. **Heartbeat check**: During heartbeat, check for overdue items and remind the owner
+### Dispatch target not found
 
-Hook scripts are installed to `~/.openclaw/hooks/agent-todo/` and configured via OpenClaw's hook system.
+Fail fast with a clear error.
 
-### Deadline Enforcement
+### Duplicate `agent_id`
 
-- **< 2h remaining**: Warning flag in list output
-- **Overdue**: Status changes to `overdue`, highlighted in heartbeat report
-- **Owner contacted**: If overdue > 24h, skill notifies requester directly
+Fail fast and show conflicting workspaces.
 
-### Completion Reporting Workflow
+### Missing local identity
 
-1. Owner runs `todo done <id> --note "..."`
-2. Skill generates completion report (markdown)
-3. Skill posts report to original source (forum topic or direct message)
-4. TODO status → `done`, `completed_at` recorded
+Allow local mode. Only dispatch requires target discovery.
 
-## File Structure
+## Non-Goals
 
-```
-agent-todo/
-├── SKILL.md              # This file
-├── script.sh             # Main CLI entry point
-├── todo_lib.sh           # Core library functions
-├── hooks/
-│   ├── post_reply.sh    # Hook: capture TODOs from forum replies
-│   └── heartbeat.sh      # Hook: check overdue items during heartbeat
-├── todo.sh              # Main todo management script
-├── TODO.md              # The TODO database (workspace file)
-└── references/
-    └── openclaw-hooks.md # Hook installation guide
-```
-
-The TODO database (`TODO.md`) lives outside the hook scripts and is intended as runtime data rather than repository source. In this implementation it defaults to the workspace root relative to the skill directory, and can also be overridden via the `TODO_DB` environment variable.
-
-## Technical Approach
-
-### CLI Design
-
-All operations go through `script.sh` which dispatches to `todo.sh`:
-
-```bash
-./script.sh add "title" --deadline "..." --owner "..." ...
-./script.sh list [--owner X] [--status Y] [--upcoming H]
-./script.sh done <id> --note "..."
-./script.sh cancel <id> --reason "..."
-./script.sh check-overdue
-```
-
-### Data Storage
-
-Plain markdown table in `TODO.md`:
-
-```markdown
-# agent-todo Database
-<!-- Last updated: 2026-03-22T17:30:00+08:00 -->
-
-## TODOs
-
-| id | title | deadline | owner | requester | source | status | created_at | updated_at | completed_at | notes | tags |
-|----|-------|----------|-------|-----------|--------|--------|------------|------------|--------------|-------|------|
-| abc123 | Write SPEC.md | 2026-03-22T12:00:00+08:00 | 云舟 | 阿君 | forum:#19 | done | 2026-03-22T10:00:00+08:00 | 2026-03-22T17:30:00+08:00 | 2026-03-22T17:30:00+08:00 | | |
-```
-
-Using markdown table allows:
-- Human readable and editable
-- Git-diff friendly
-- No external database dependencies
-
-### OpenClaw Integration
-
-1. **Workspace injection**: `TODO.md` path configured in skill metadata
-2. **Hook scripts**: Installed to `~/.openclaw/hooks/agent-todo/`
-3. **Heartbeat**: Skill's `check-overdue` called during heartbeat cycle
-4. **Forum reporting**: Uses `agent-forum` skill's `reply` to post completion reports
-
-## Implementation Priority
-
-### Phase 1: Core CLI (MVP)
-- `add`, `list`, `done` commands
-- Markdown table storage
-- Deadline checking
-
-### Phase 2: Hook Integration
-- Forum reply hook for auto-capture
-- Heartbeat overdue check
-
-### Phase 3: Reporting
-- Completion report generation
-- Forum posting integration
-
-## Acceptance Criteria
-
-1. ✅ Agent can add a TODO with deadline via command line
-2. ✅ Agent can list pending, overdue, and done TODOs
-3. ✅ Agent can mark TODO complete with a completion note
-4. ✅ Overdue TODOs are flagged in heartbeat checks
-5. ✅ Completion reports can be posted to the original forum topic
-6. ✅ All data persisted in `TODO.md` (markdown table)
-7. ✅ Skill follows standard SKILL.md format
-8. ✅ Hooks reference OpenClaw's hook system
-9. ✅ Code is clean, readable, and suitable for open source
+- no shared global TODO file
+- no central agent registry owned by agent-todo
+- no whole-file overwrite of `HEARTBEAT.md`

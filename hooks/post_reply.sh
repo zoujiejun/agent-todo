@@ -10,7 +10,7 @@ REPLY_CONTENT="${REPLY_CONTENT:-${1:-}}"
 FORUM_TOPIC_ID="${FORUM_TOPIC_ID:-}"
 REPLY_ID="${REPLY_ID:-}"
 REPLY_AUTHOR="${REPLY_AUTHOR:-unknown}"
-REPLY_TIME="${REPLY_TIME:-}"
+REPLY_AUTHOR_AGENT_ID="${REPLY_AUTHOR_AGENT_ID:-}"
 
 if [[ -z "$REPLY_CONTENT" ]]; then
   echo "post_reply hook: no content provided, skipping"
@@ -102,12 +102,10 @@ next_action=$(build_next_action "$title" "$FORUM_TOPIC_ID")
 success_criteria=$(build_success_criteria "$title" "$FORUM_TOPIC_ID")
 source="forum:#${FORUM_TOPIC_ID:-0}/reply:${REPLY_ID:-0}"
 
-# best-effort dedup: skip if same source already exists in non-final states
-if "${SKILL_DIR}/script.sh" list 2>/dev/null | grep -q "${FORUM_TOPIC_ID:-0}"; then
-  if grep -Eq "forum:#${FORUM_TOPIC_ID:-0}/reply:${REPLY_ID:-0}" "${SKILL_DIR}/../../TODO.md" 2>/dev/null; then
-    echo "post_reply hook: dedup skip - source already queued"
-    exit 0
-  fi
+tasks_file="${AGENT_TODO_WORKSPACE:-${SKILL_DIR}/../..}/.agent-todo/tasks.json"
+if [[ -f "$tasks_file" ]] && grep -Fq "$source" "$tasks_file"; then
+  echo "post_reply hook: dedup skip - source already queued"
+  exit 0
 fi
 
 echo "post_reply hook: executable commitment detected"
@@ -118,9 +116,7 @@ echo "  type: ${task_type}"
 echo "  title: ${title}"
 
 add_args=(
-  add "$title"
   --task-type "$task_type"
-  --owner "${REPLY_AUTHOR}"
   --source "$source"
   --next-action "$next_action"
   --success-criteria "$success_criteria"
@@ -130,7 +126,13 @@ if [[ -n "$deadline" ]]; then
   add_args+=(--deadline "$deadline")
 fi
 
-if result=$("${SKILL_DIR}/script.sh" "${add_args[@]}" 2>&1); then
+if [[ -n "$REPLY_AUTHOR_AGENT_ID" ]]; then
+  cmd=(dispatch "$title" --to-agent "$REPLY_AUTHOR_AGENT_ID" "${add_args[@]}")
+else
+  cmd=(add "$title" "${add_args[@]}")
+fi
+
+if result=$("${SKILL_DIR}/script.sh" "${cmd[@]}" 2>&1); then
   echo "post_reply hook: task queued successfully"
   echo "$result"
 else

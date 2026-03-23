@@ -1,43 +1,37 @@
 # agent-todo
 
-> **Stop letting your AI agents make empty promises.**
-> Chat interfaces are great for talking, but bad for doing. When an agent says "I will do this later," it usually forgets as soon as the context window clears.
->
-> `agent-todo` is an active execution queue designed natively for AI agents. Instead of just adding items to a passive list, it wires directly into the agent's heartbeat—forcing the agent to automatically claim the next task, execute it in the background, and report back to the original source when finished.
->
-> No more reminders. Just execution.
+> **Local-first execution queue for OpenClaw agents.**
+> Each agent keeps its own queue inside its own workspace, claims work during heartbeat, and can dispatch tasks to another agent when needed.
 
 - GitHub: https://github.com/zoujiejun/agent-todo
 - ClawHub: https://clawhub.com/skills/agent-todo
 - 中文说明: [README.zh-CN.md](./README.zh-CN.md)
 
-## What changed
+## What it solves
 
-This skill is now positioned as an **execution queue**, not just a reminder tool.
+Chat is good at promises and bad at follow-through.
 
-- heartbeat should **pick work and execute it**, not merely remind
-- tasks carry **next_action** and **success_criteria**
-- queue state supports **pending / running / blocked / done / cancelled**
-- `run-pending` emits the next task brief for the agent to act on immediately
+`agent-todo` turns “I’ll do this later” into executable work:
 
-## Features
+- each workspace owns its own queue
+- heartbeat picks the next task and claims it
+- finished work can be reported back to the original source
+- tasks can be dispatched across agents discovered from OpenClaw config
 
-- **Queue tasks** with title, type, owner, deadline, next action, and success criteria
-- **Claim work on heartbeat** via `run-pending --claim`
-- **Track execution state** with `pending`, `running`, `blocked`, `done`, and `cancelled`
-- **Generate source-aware completion reports** for forum replies and direct chats
-- **Keep source context** so finished work can be reported back to the original chat or topic
-- **Structure reply commitments automatically** into executable tasks with task type, next action, and success criteria
-- **Prefer continuing running work** before picking a fresh pending task
-- **Detect heartbeat onboarding gaps** with `doctor` and `setup-heartbeat`
+## Storage model
 
-## Relationship with agent-forum
+Runtime data lives inside the workspace:
 
-`agent-todo` is a **standalone skill**. It does **not** depend on `agent-forum`.
+```text
+<workspace>/
+  .agent-todo/
+    tasks.json
+    local.json   # optional
+```
 
-- Use it as an agent execution queue from plain CLI
-- Or wire it into OpenClaw heartbeat / reply hooks
-- If you already use `agent-forum`, forum replies can be one task source, but that integration is optional
+- `tasks.json`: the local execution queue
+- `local.json`: optional self-declared identity, e.g. `{"agent_id":"coding","label":"云舟"}`
+- workspace discovery source: `~/.openclaw/openclaw.json`
 
 ## Quick Start
 
@@ -46,57 +40,66 @@ This skill is now positioned as an **execution queue**, not just a reminder tool
 ```bash
 git clone https://github.com/zoujiejun/agent-todo.git
 cd agent-todo
-chmod +x todo.sh todo_lib.sh script.sh hooks/*.sh
+chmod +x script.sh todo.sh hooks/*.sh tests/smoke.sh
 ```
 
-### Initialize
+### Initialize local queue
 
 ```bash
 bash ./script.sh init
 ```
 
-On first use, `agent-todo` will remind you if heartbeat has not been configured yet.
-
-### Wire heartbeat
-
-Check current status:
+### Check current status
 
 ```bash
 bash ./script.sh doctor
 ```
 
-Show the heartbeat block to add manually:
-
-```bash
-bash ./script.sh setup-heartbeat
-```
-
-Write the block into `HEARTBEAT.md` automatically:
+### Wire heartbeat for current workspace
 
 ```bash
 bash ./script.sh setup-heartbeat --write
 ```
 
-### Queue a task
+### Wire heartbeat for all discovered workspaces
 
 ```bash
-bash ./script.sh add "Publish skill to GitHub and ClawHub" \
-  --task-type publish \
-  --owner "Yunzhou" \
-  --source "chat:direct" \
-  --next-action "Push main to GitHub, then publish a release to ClawHub" \
-  --success-criteria "GitHub updated and ClawHub version published"
+bash ./script.sh setup-heartbeat --all --write
 ```
 
-### Split a composite goal into executable steps
+This uses a managed block in `HEARTBEAT.md` and updates that block in place instead of overwriting the whole file.
+
+### Add a task for the current agent
+
+```bash
+bash ./script.sh add "Publish release" \
+  --task-type publish \
+  --source "forum:#19/reply:88" \
+  --next-action "Push GitHub and publish ClawHub" \
+  --success-criteria "GitHub and ClawHub updated"
+```
+
+### Split a composite goal into steps
 
 ```bash
 bash ./script.sh plan "Open-source release" \
   --task-type publish \
-  --owner "Yunzhou" \
   --source "chat:direct" \
   --steps "Update README; Push GitHub; Publish ClawHub"
 ```
+
+### Dispatch a task to another agent
+
+```bash
+bash ./script.sh dispatch "Review release" \
+  --to-agent lilith \
+  --task-type review \
+  --source "chat:direct" \
+  --next-action "Review release artifacts" \
+  --success-criteria "Feedback delivered"
+```
+
+`dispatch` scans workspaces from `~/.openclaw/openclaw.json`, reads each workspace's `.agent-todo/local.json`, and writes the task into the matching target workspace.
 
 ### Let heartbeat pick work
 
@@ -104,63 +107,41 @@ bash ./script.sh plan "Open-source release" \
 bash ./script.sh run-pending --claim
 ```
 
-If a task exists, the command prints an `EXECUTE_NOW` brief with the task context. If there is no task, it prints `HEARTBEAT_OK`.
+If a task exists, the command prints an `EXECUTE_NOW` brief. If there is no runnable task, it prints `HEARTBEAT_OK`.
 
 ### Update task state
 
 ```bash
-bash ./script.sh block <id> --reason "Need GitHub token"
-bash ./script.sh done <id> --note "GitHub pushed and ClawHub published"
+bash ./script.sh block <id> --reason "Need review"
+bash ./script.sh done <id> --note "Work completed"
 bash ./script.sh report <id>
 bash ./script.sh cancel <id> --reason "Handled elsewhere"
 ```
 
-## Data Model
-
-Tasks are stored in `TODO.md` as a Markdown table. This is runtime data, not source code.
-
-```markdown
-| id | title | task_type | owner | requester | source | status | deadline | next_action | success_criteria | created_at | updated_at | last_attempt_at | completed_at | result | tags |
-|----|-------|-----------|-------|-----------|--------|--------|----------|-------------|------------------|------------|------------|-----------------|--------------|--------|------|
-```
-
-## Heartbeat Integration
-
-Add this to `HEARTBEAT.md`:
+## Core commands
 
 ```bash
-bash /path/to/agent-todo/script.sh run-pending --claim
-```
-
-Expected behavior:
-
-- no task → `HEARTBEAT_OK`
-- running task exists → continue that work first
-- otherwise pick the best pending task and output an execution brief
-- task blocked → mark with `block`
-- task completed → mark with `done`
-
-## Core Commands
-
-```bash
+bash ./script.sh init
 bash ./script.sh doctor
 bash ./script.sh setup-heartbeat --write
+bash ./script.sh setup-heartbeat --all --write
 bash ./script.sh add "Refine release plan" --task-type doc --next-action "Update README and SKILL.md"
+bash ./script.sh dispatch "Review release" --to-agent lilith --task-type review --next-action "Review artifacts"
 bash ./script.sh plan "Release" --task-type publish --steps "Update README; Push GitHub; Publish ClawHub"
 bash ./script.sh list --status pending
 bash ./script.sh show <id>
 bash ./script.sh run-pending --claim
-bash ./script.sh start <id>
 bash ./script.sh block <id> --reason "Waiting for review"
 bash ./script.sh done <id> --note "README updated and pushed"
 bash ./script.sh report <id>
 bash ./script.sh cancel <id> --reason "No longer needed"
+bash ./script.sh agents list
 ```
 
 ## Statuses
 
 | Status | Meaning |
-|------|------|
+|---|---|
 | pending | queued, not started |
 | running | currently being worked on |
 | blocked | cannot continue without input or dependency |
@@ -168,8 +149,6 @@ bash ./script.sh cancel <id> --reason "No longer needed"
 | cancelled | intentionally dropped |
 
 ## Testing
-
-Run the smoke test:
 
 ```bash
 bash tests/smoke.sh
